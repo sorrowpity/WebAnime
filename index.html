@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D动画演示系统</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .control-group {
+            margin-bottom: 10px;
+        }
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="range"] {
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <h3>3D动画控制面板</h3>
+        
+        <div class="control-group">
+            <label>选择几何体:</label>
+            <select id="geometrySelector">
+                <option value="cube">立方体</option>
+                <option value="sphere">球体</option>
+                <option value="cylinder">圆柱体</option>
+                <option value="torus">环面体</option>
+                <option value="plane">平面</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label>几何变换:</label>
+            <div>
+                <label>X位置: <input type="range" id="posX" min="-5" max="5" step="0.1" value="0"></label>
+            </div>
+            <div>
+                <label>Y位置: <input type="range" id="posY" min="-5" max="5" step="0.1" value="0"></label>
+            </div>
+            <div>
+                <label>Z位置: <input type="range" id="posZ" min="-5" max="5" step="0.1" value="0"></label>
+            </div>
+            <div>
+                <label>X旋转: <input type="range" id="rotX" min="0" max="360" step="5" value="0"></label>
+            </div>
+            <div>
+                <label>Y旋转: <input type="range" id="rotY" min="0" max="360" step="5" value="0"></label>
+            </div>
+            <div>
+                <label>Z旋转: <input type="range" id="rotZ" min="0" max="360" step="5" value="0"></label>
+            </div>
+            <div>
+                <label>缩放: <input type="range" id="scale" min="0.1" max="5" step="0.1" value="1"></label>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <label>材质属性:</label>
+            <div>
+                <label>颜色: <input type="color" id="colorPicker" value="#ff0000"></label>
+            </div>
+            <div>
+                <label>金属度: <input type="range" id="metalness" min="0" max="1" step="0.1" value="0"></label>
+            </div>
+            <div>
+                <label>粗糙度: <input type="range" id="roughness" min="0" max="1" step="0.1" value="0.5"></label>
+            </div>
+            <div>
+                <label>透明度: <input type="range" id="opacity" min="0" max="1" step="0.1" value="1"></label>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <label>光照控制:</label>
+            <div>
+                <label>环境光强度: <input type="range" id="ambientIntensity" min="0" max="1" step="0.1" value="0.5"></label>
+            </div>
+            <div>
+                <label>方向光强度: <input type="range" id="dirIntensity" min="0" max="5" step="0.1" value="1"></label>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <label>纹理映射:</label>
+            <button id="loadTexture">加载纹理</button>
+            <button id="loadNormalMap">加载法线贴图</button>
+            <button id="loadEnvMap">加载环境贴图</button>
+        </div>
+        
+        <div class="control-group">
+            <label>自由变形:</label>
+            <button id="warpMesh">扭曲网格</button>
+            <button id="resetMesh">重置网格</button>
+        </div>
+        
+        <div class="control-group">
+            <label>动画控制:</label>
+            <button id="addKeyframe">添加关键帧</button>
+            <button id="playAnim">播放动画</button>
+            <button id="stopAnim">停止动画</button>
+            <button id="clearAnim">清除动画</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+    <script>
+        // 初始化Three.js场景
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // 添加轨道控制器
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        
+        // 设置相机位置
+        camera.position.set(0, 10, 20);
+        camera.lookAt(0, 0, 0);
+        
+        // 添加灯光
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(5, 10, 7.5);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        scene.add(dirLight);
+        
+        // 添加环境光贴图
+        const envLoader = new THREE.CubeTextureLoader();
+        const envMap = envLoader.load([
+            'https://threejs.org/examples/textures/cube/Park3/Park3_posx.jpg',
+            'https://threejs.org/examples/textures/cube/Park3/Park3_negx.jpg',
+            'https://threejs.org/examples/textures/cube/Park3/Park3_posy.jpg',
+            'https://threejs.org/examples/textures/cube/Park3/Park3_negy.jpg',
+            'https://threejs.org/examples/textures/cube/Park3/Park3_posz.jpg',
+            'https://threejs.org/examples/textures/cube/Park3/Park3_negz.jpg',
+        ]);
+        scene.environment = envMap;
+        
+        // 创建地面
+        const groundGeometry = new THREE.PlaneGeometry(50, 50);
+        const groundMaterial = new THREE.MeshStandardMaterial({
+            color: 0x00cc00,
+            roughness: 0.8
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+        
+        // 创建几何体
+        let currentMesh = null;
+        let originalGeometry = null;
+        
+        function createGeometry(type) {
+            switch(type) {
+                case 'cube':
+                    return new THREE.BoxGeometry(5, 5, 5);
+                case 'sphere':
+                    return new THREE.SphereGeometry(3, 32, 32);
+                case 'cylinder':
+                    return new THREE.CylinderGeometry(2, 2, 6, 32);
+                case 'torus':
+                    return new THREE.TorusGeometry(3, 1, 16, 100);
+                case 'plane':
+                    return new THREE.PlaneGeometry(10, 10);
+                default:
+                    return new THREE.BoxGeometry(5, 5, 5);
+            }
+        }
+        
+        function createMesh(geometryType) {
+            const geometry = createGeometry(geometryType);
+            const material = new THREE.MeshStandardMaterial({
+                color: 0xff0000,
+                metalness: 0,
+                roughness: 0.5,
+                transparent: false,
+                opacity: 1
+            });
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            
+            // 移除旧的几何体
+            if (currentMesh) {
+                scene.remove(currentMesh);
+            }
+            
+            scene.add(mesh);
+            currentMesh = mesh;
+            originalGeometry = geometry.clone();
+            
+            updateMesh();
+            
+            return mesh;
+        }
+        
+        createMesh('cube');
+        
+        // 关键帧动画
+        let keyframes = [];
+        let isPlaying = false;
+        let animationTime = 0;
+        let frameDuration = 1.0; // 每帧1秒
+        
+        function addKeyframe() {
+            if (currentMesh) {
+                const position = currentMesh.position.clone();
+                const quaternion = currentMesh.quaternion.clone();
+                const scale = currentMesh.scale.clone();
+                
+                keyframes.push({
+                    position,
+                    quaternion,
+                    scale,
+                    time: animationTime
+                });
+                
+                animationTime += frameDuration;
+            }
+        }
+        
+        function updateAnimation() {
+            if (!keyframes.length || keyframes.length < 2 || !isPlaying) return;
+            
+            const currentTime = performance.now() / 1000;
+            
+            // 查找当前时间对应的关键帧
+            for (let i = 0; i < keyframes.length - 1; i++) {
+                const startFrame = keyframes[i];
+                const endFrame = keyframes[i + 1];
+                
+                if (currentTime >= startFrame.time && currentTime <= endFrame.time) {
+                    // 计算插值比例
+                    const t = (currentTime - startFrame.time) / (endFrame.time - startFrame.time);
+                    
+                    // 线性插值位置
+                    currentMesh.position.lerpVectors(startFrame.position, endFrame.position, t);
+                    
+                    // 球面插值旋转
+                    currentMesh.quaternion.slerp(endFrame.quaternion, t);
+                    
+                    // 线性插值缩放
+                    currentMesh.scale.lerpVectors(startFrame.scale, endFrame.scale, t);
+                    
+                    break;
+                }
+            }
+        }
+        
+        // UI控制
+        document.getElementById('geometrySelector').addEventListener('change', function(e) {
+            createMesh(e.target.value);
+        });
+        
+        document.getElementById('posX').addEventListener('input', updateMesh);
+        document.getElementById('posY').addEventListener('input', updateMesh);
+        document.getElementById('posZ').addEventListener('input', updateMesh);
+        document.getElementById('rotX').addEventListener('input', updateMesh);
+        document.getElementById('rotY').addEventListener('input', updateMesh);
+        document.getElementById('rotZ').addEventListener('input', updateMesh);
+        document.getElementById('scale').addEventListener('input', updateMesh);
+        document.getElementById('colorPicker').addEventListener('input', updateMesh);
+        document.getElementById('metalness').addEventListener('input', updateMesh);
+        document.getElementById('roughness').addEventListener('input', updateMesh);
+        document.getElementById('opacity').addEventListener('input', updateMesh);
+        document.getElementById('ambientIntensity').addEventListener('input', updateAmbientLight);
+        document.getElementById('dirIntensity').addEventListener('input', updateDirectionalLight);
+        
+        document.getElementById('loadTexture').addEventListener('click', loadTexture);
+        document.getElementById('loadNormalMap').addEventListener('click', loadNormalMap);
+        document.getElementById('loadEnvMap').addEventListener('click', loadEnvMap);
+        
+        document.getElementById('warpMesh').addEventListener('click', warpMesh);
+        document.getElementById('resetMesh').addEventListener('click', resetMesh);
+        
+        document.getElementById('addKeyframe').addEventListener('click', addKeyframe);
+        document.getElementById('playAnim').addEventListener('click', function() {
+            isPlaying = true;
+            animationTime = keyframes[0].time; // 从第一个关键帧开始
+        });
+        document.getElementById('stopAnim').addEventListener('click', function() {
+            isPlaying = false;
+        });
+        document.getElementById('clearAnim').addEventListener('click', function() {
+            keyframes = [];
+            animationTime = 0;
+        });
+        
+        function updateMesh() {
+            if (!currentMesh) return;
+            
+            // 更新位置
+            currentMesh.position.x = parseFloat(document.getElementById('posX').value);
+            currentMesh.position.y = parseFloat(document.getElementById('posY').value);
+            currentMesh.position.z = parseFloat(document.getElementById('posZ').value);
+            
+            // 更新旋转
+            currentMesh.rotation.x = THREE.MathUtils.degToRad(parseFloat(document.getElementById('rotX').value));
+            currentMesh.rotation.y = THREE.MathUtils.degToRad(parseFloat(document.getElementById('rotY').value));
+            currentMesh.rotation.z = THREE.MathUtils.degToRad(parseFloat(document.getElementById('rotZ').value));
+            
+            // 更新缩放
+            const scale = parseFloat(document.getElementById('scale').value);
+            currentMesh.scale.set(scale, scale, scale);
+            
+            // 更新材质
+            currentMesh.material.color.set(document.getElementById('colorPicker').value);
+            currentMesh.material.metalness = parseFloat(document.getElementById('metalness').value);
+            currentMesh.material.roughness = parseFloat(document.getElementById('roughness').value);
+            currentMesh.material.opacity = parseFloat(document.getElementById('opacity').value);
+            currentMesh.material.transparent = currentMesh.material.opacity < 1;
+        }
+        
+        function updateAmbientLight() {
+            ambientLight.intensity = parseFloat(document.getElementById('ambientIntensity').value);
+        }
+        
+        function updateDirectionalLight() {
+            dirLight.intensity = parseFloat(document.getElementById('dirIntensity').value);
+        }
+        
+        function loadTexture() {
+            if (!currentMesh) return;
+            
+            const loader = new THREE.TextureLoader();
+            loader.load(
+                'https://threejs.org/examples/textures/hardwood2_diffuse.jpg',
+                function(texture) {
+                    currentMesh.material.map = texture;
+                    currentMesh.material.needsUpdate = true;
+                }
+            );
+        }
+        
+        function loadNormalMap() {
+            if (!currentMesh) return;
+            
+            const loader = new THREE.TextureLoader();
+            loader.load(
+                'https://threejs.org/examples/textures/hardwood2_normal.jpg',
+                function(texture) {
+                    currentMesh.material.normalMap = texture;
+                    currentMesh.material.needsUpdate = true;
+                }
+            );
+        }
+        
+        function loadEnvMap() {
+            if (!currentMesh) return;
+            
+            const envLoader = new THREE.CubeTextureLoader();
+            envLoader.load([
+                'https://threejs.org/examples/textures/cube/Park3/Park3_posx.jpg',
+                'https://threejs.org/examples/textures/cube/Park3/Park3_negx.jpg',
+                'https://threejs.org/examples/textures/cube/Park3/Park3_posy.jpg',
+                'https://threejs.org/examples/textures/cube/Park3/Park3_negy.jpg',
+                'https://threejs.org/examples/textures/cube/Park3/Park3_posz.jpg',
+                'https://threejs.org/examples/textures/cube/Park3/Park3_negz.jpg',
+            ], function(envMap) {
+                currentMesh.material.envMap = envMap;
+                currentMesh.material.needsUpdate = true;
+            });
+        }
+        
+        function warpMesh() {
+            if (!currentMesh || !originalGeometry) return;
+            
+            // 克隆原始几何体并应用变形
+            const geometry = originalGeometry.clone();
+            
+            // 对几何体的顶点进行自由变形
+            geometry.vertices.forEach((vertex, index) => {
+                // 获取原始位置
+                const originalVertex = originalGeometry.vertices[index];
+                
+                // 添加随机变形
+                const warpFactor = 0.5; // 变形程度
+                vertex.x = originalVertex.x + Math.sin(originalVertex.x * 2) * warpFactor;
+                vertex.y = originalVertex.y + Math.cos(originalVertex.z * 2) * warpFactor;
+                vertex.z = originalVertex.z + Math.sin(originalVertex.y * 2) * warpFactor;
+            });
+            
+            // 重新计算法线
+            geometry.computeVertexNormals();
+            
+            // 应用变形后的几何体
+            currentMesh.geometry = geometry;
+        }
+        
+        function resetMesh() {
+            if (!currentMesh || !originalGeometry) return;
+            currentMesh.geometry = originalGeometry.clone();
+        }
+        
+        // 窗口大小调整
+        window.addEventListener('resize', function() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // 动画循环
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            controls.update();
+            
+            if (isPlaying) {
+                updateAnimation();
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        animate();
+    </script>
+</body>
+</html>
