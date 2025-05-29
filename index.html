@@ -331,6 +331,8 @@
         ];
         const envMap = envLoader.load(envMapUrls);
         scene.environment = envMap; // 设置全局环境贴图
+        const pointLightHelper = new THREE.PointLightHelper(pointLight, 1); // 第二个参数是辅助几何体的半径
+        scene.add(pointLightHelper);
 
         // --- 4. 地面 ---
         const groundGeometry = new THREE.PlaneGeometry(50, 50);
@@ -589,12 +591,23 @@
         function updateLightControls() {
             ambientLight.intensity = parseFloat(uiElements.ambientIntensity.value);
             dirLight.intensity = parseFloat(uiElements.dirIntensity.value);
-            pointLight.intensity = parseFloat(uiElements.pointIntensity.value);
+            
+            // 更新点光源强度
+            const pointIntensity = parseFloat(uiElements.pointIntensity.value);
+            pointLight.intensity = pointIntensity;
+            
+            // 更新点光源位置
             pointLight.position.set(
                 parseFloat(uiElements.pointLightX.value),
                 parseFloat(uiElements.pointLightY.value),
                 parseFloat(uiElements.pointLightZ.value)
             );
+            
+            
+            // 修复：更新点光源阴影参数（如果需要动态调整阴影分辨率）
+            pointLight.shadow.mapSize.width = 512;
+            pointLight.shadow.mapSize.height = 512;
+            
             updateValueDisplays();
         }
 
@@ -628,6 +641,7 @@
             if (element.tagName === 'INPUT' && element.type === 'range') {
                 element.addEventListener('input', applyUIValuesToObject);
                 element.addEventListener('input', updateValueDisplays); // 立即更新显示
+                element.addEventListener('input', updateLightControls);
             } else if (element.tagName === 'INPUT' && element.type === 'color') {
                 element.addEventListener('input', applyUIValuesToObject);
             } else if (element.id.startsWith('pointLight')) {
@@ -1043,6 +1057,7 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
+
     </script>
 </body>
 </html>
