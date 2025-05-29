@@ -1,39 +1,141 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D动画演示系统</title>
     <style>
-        body { margin: 0; overflow: hidden; }
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         canvas { display: block; }
         #ui {
             position: absolute;
             top: 10px;
             left: 10px;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.75); /* 更深的背景 */
             color: white;
-            padding: 10px;
-            border-radius: 5px;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 20px);
+            overflow-y: auto; /* 允许滚动 */
+            width: 280px; /* 固定宽度 */
+            box-sizing: border-box; /* 包含padding在内的宽度 */
+            z-index: 1000; /* 确保在最上层 */
+        }
+        #ui h3 {
+            margin-top: 0;
+            color: #4CAF50;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
         }
         .control-group {
-            margin-bottom: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+        .control-group:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
         }
         .control-group label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #ADD8E6;
+            font-size: 0.95em;
+        }
+        .control-group div label {
+            font-weight: normal;
+            font-size: 0.9em;
+            color: #E0E0E0;
+            margin-bottom: 4px;
         }
         input[type="range"] {
-            width: 200px;
+            width: calc(100% - 10px);
+            margin-top: 5px;
+            -webkit-appearance: none;
+            height: 4px;
+            background: #d3d3d3;
+            outline: none;
+            opacity: 0.7;
+            -webkit-transition: .2s;
+            transition: opacity .2s;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+        }
+        input[type="color"] {
+            width: 80px;
+            height: 25px;
+            vertical-align: middle;
+            border: none;
+            padding: 0;
+        }
+        select, button, input[type="file"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 5px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background-color: #333;
+            color: white;
+            box-sizing: border-box;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        button:hover {
+            background-color: #555;
+        }
+        button.action-button {
+            background-color: #4CAF50;
+            border-color: #4CAF50;
+            margin-top: 5px;
+        }
+        button.action-button:hover {
+            background-color: #5cb85c;
+        }
+        .button-group {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap; /* 允许换行 */
+        }
+        .button-group button {
+            flex-grow: 1; /* 均匀分布 */
+            width: auto; /* 覆盖100% */
+        }
+        input[type="file"] {
+            padding: 4px; /* 文件输入框可能需要调整 */
+            background-color: #2a2a2a;
+        }
+        .value-display {
+            float: right;
+            font-size: 0.8em;
+            color: #BBB;
         }
     </style>
 </head>
 <body>
     <div id="ui">
-        <h3>3D动画控制面板</h3>
+        <h3>🚀 3D动画演示系统 🚀</h3>
         
         <div class="control-group">
-            <label>选择几何体:</label>
+            <label>几何建模:</label>
             <select id="geometrySelector">
                 <option value="cube">立方体</option>
                 <option value="sphere">球体</option>
@@ -41,404 +143,906 @@
                 <option value="torus">环面体</option>
                 <option value="plane">平面</option>
             </select>
+            <label for="gltfModelInput">加载GLTF/GLB模型:</label>
+            <input type="file" id="gltfModelInput" accept=".gltf,.glb">
         </div>
         
         <div class="control-group">
             <label>几何变换:</label>
             <div>
-                <label>X位置: <input type="range" id="posX" min="-5" max="5" step="0.1" value="0"></label>
+                <label>X位置: <span class="value-display" id="posX_val">0.0</span></label>
+                <input type="range" id="posX" min="-5" max="5" step="0.1" value="0">
             </div>
             <div>
-                <label>Y位置: <input type="range" id="posY" min="-5" max="5" step="0.1" value="0"></label>
+                <label>Y位置: <span class="value-display" id="posY_val">0.0</span></label>
+                <input type="range" id="posY" min="-5" max="5" step="0.1" value="0">
             </div>
             <div>
-                <label>Z位置: <input type="range" id="posZ" min="-5" max="5" step="0.1" value="0"></label>
+                <label>Z位置: <span class="value-display" id="posZ_val">0.0</span></label>
+                <input type="range" id="posZ" min="-5" max="5" step="0.1" value="0">
             </div>
             <div>
-                <label>X旋转: <input type="range" id="rotX" min="0" max="360" step="5" value="0"></label>
+                <label>X旋转: <span class="value-display" id="rotX_val">0°</span></label>
+                <input type="range" id="rotX" min="0" max="360" step="1" value="0">
             </div>
             <div>
-                <label>Y旋转: <input type="range" id="rotY" min="0" max="360" step="5" value="0"></label>
+                <label>Y旋转: <span class="value-display" id="rotY_val">0°</span></label>
+                <input type="range" id="rotY" min="0" max="360" step="1" value="0">
             </div>
             <div>
-                <label>Z旋转: <input type="range" id="rotZ" min="0" max="360" step="5" value="0"></label>
+                <label>Z旋转: <span class="value-display" id="rotZ_val">0°</span></label>
+                <input type="range" id="rotZ" min="0" max="360" step="1" value="0">
             </div>
             <div>
-                <label>缩放: <input type="range" id="scale" min="0.1" max="5" step="0.1" value="1"></label>
+                <label>缩放: <span class="value-display" id="scale_val">1.0</span></label>
+                <input type="range" id="scale" min="0.1" max="5" step="0.05" value="1">
             </div>
         </div>
         
         <div class="control-group">
-            <label>材质属性:</label>
+            <label>材质与纹理:</label>
             <div>
                 <label>颜色: <input type="color" id="colorPicker" value="#ff0000"></label>
             </div>
             <div>
-                <label>金属度: <input type="range" id="metalness" min="0" max="1" step="0.1" value="0"></label>
+                <label>金属度: <span class="value-display" id="metalness_val">0.0</span></label>
+                <input type="range" id="metalness" min="0" max="1" step="0.05" value="0">
             </div>
             <div>
-                <label>粗糙度: <input type="range" id="roughness" min="0" max="1" step="0.1" value="0.5"></label>
+                <label>粗糙度: <span class="value-display" id="roughness_val">0.5</span></label>
+                <input type="range" id="roughness" min="0" max="1" step="0.05" value="0.5">
             </div>
             <div>
-                <label>透明度: <input type="range" id="opacity" min="0" max="1" step="0.1" value="1"></label>
+                <label>透明度: <span class="value-display" id="opacity_val">1.0</span></label>
+                <input type="range" id="opacity" min="0" max="1" step="0.05" value="1">
             </div>
+            <label for="diffuseTextureInput">漫反射纹理:</label>
+            <input type="file" id="diffuseTextureInput" accept="image/*">
+            <label for="normalMapInput">法线贴图:</label>
+            <input type="file" id="normalMapInput" accept="image/*">
         </div>
         
         <div class="control-group">
             <label>光照控制:</label>
             <div>
-                <label>环境光强度: <input type="range" id="ambientIntensity" min="0" max="1" step="0.1" value="0.5"></label>
+                <label>环境光强度: <span class="value-display" id="ambientIntensity_val">0.5</span></label>
+                <input type="range" id="ambientIntensity" min="0" max="1" step="0.05" value="0.5">
             </div>
             <div>
-                <label>方向光强度: <input type="range" id="dirIntensity" min="0" max="5" step="0.1" value="1"></label>
+                <label>方向光强度: <span class="value-display" id="dirIntensity_val">1.0</span></label>
+                <input type="range" id="dirIntensity" min="0" max="5" step="0.1" value="1">
             </div>
+            <div>
+                <label>点光源强度: <span class="value-display" id="pointIntensity_val">0.8</span></label>
+                <input type="range" id="pointIntensity" min="0" max="5" step="0.1" value="0.8">
+            </div>
+            <label for="pointLightX">点光源X:</label>
+            <input type="range" id="pointLightX" min="-10" max="10" step="0.5" value="0">
+            <label for="pointLightY">点光源Y:</label>
+            <input type="range" id="pointLightY" min="0" max="15" step="0.5" value="5">
+            <label for="pointLightZ">点光源Z:</label>
+            <input type="range" id="pointLightZ" min="-10" max="10" step="0.5" value="0">
         </div>
         
         <div class="control-group">
-            <label>纹理映射:</label>
-            <button id="loadTexture">加载纹理</button>
-            <button id="loadNormalMap">加载法线贴图</button>
-            <button id="loadEnvMap">加载环境贴图</button>
+            <label>自由变形 (FFD):</label>
+            <div class="button-group">
+                <button id="createFFDPoints" class="action-button">创建控制点</button>
+                <button id="resetFFD">重置变形</button>
+            </div>
+            <p style="font-size:0.8em; color:#ccc; margin-top:10px;">(拖拽场景中的蓝色球体进行变形)</p>
         </div>
         
         <div class="control-group">
-            <label>自由变形:</label>
-            <button id="warpMesh">扭曲网格</button>
-            <button id="resetMesh">重置网格</button>
-        </div>
-        
-        <div class="control-group">
-            <label>动画控制:</label>
-            <button id="addKeyframe">添加关键帧</button>
-            <button id="playAnim">播放动画</button>
-            <button id="stopAnim">停止动画</button>
-            <button id="clearAnim">清除动画</button>
+            <label>关键帧动画:</label>
+            <div class="button-group">
+                <button id="addKeyframe" class="action-button">添加关键帧</button>
+                <button id="playAnim">播放</button>
+                <button id="pauseAnim">暂停</button>
+                <button id="resetAnim">重置</button>
+                <button id="clearAnim">清除所有</button>
+            </div>
+            <div style="margin-top: 10px;">
+                <label>动画进度: <span class="value-display" id="animTime_val">0.0s</span></label>
+                <input type="range" id="animationTimeline" min="0" max="10" step="0.01" value="0">
+            </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+    <!-- Three.js 库 -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/build/three.min.js"></script>
+    <!-- 轨道控制器 -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- GLTF/GLB 模型加载器 -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/loaders/GLTFLoader.js"></script>
+    <!-- 可视化调试工具 (可选) -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/libs/dat.gui.min.js"></script> -->
+
     <script>
-        // 初始化Three.js场景
+        // --- 1. 场景初始化 ---
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.enabled = true; // 启用阴影
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // 柔和阴影
         document.body.appendChild(renderer.domElement);
 
-        // 添加轨道控制器
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
-        
-        // 设置相机位置
         camera.position.set(0, 10, 20);
-        camera.lookAt(0, 0, 0);
-        
-        // 添加灯光
+        controls.update();
+
+        // --- 提前声明所有可能在初始化时被引用的全局变量 ---
+        let currentObject = null; // 当前操作的3D对象 (可以是Mesh或Group)
+        let currentMesh = null; // 当前操作的Mesh (如果是GLTF，则指向第一个Mesh)
+        let originalGeometry = null; // 存储原始几何体用于FFD重置
+        const textureLoader = new THREE.TextureLoader();
+        const gltfLoader = new THREE.GLTFLoader();
+
+        let ffdControlPoints = [];
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        let draggableFFDPoint = null; // 当前被拖拽的FFD点
+
+        let mixer = null;
+        let animations = []; // 存储所有 AnimationClip，目前只有一个模型所以只用一个
+        let animationAction = null; // 确保在任何函数调用它之前就已声明
+
+        const clock = new THREE.Clock(); // 用于动画时间管理
+
+        // --- 2. 灯光设置 ---
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
         scene.add(ambientLight);
-        
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
         dirLight.position.set(5, 10, 7.5);
         dirLight.castShadow = true;
         dirLight.shadow.mapSize.width = 1024;
         dirLight.shadow.mapSize.height = 1024;
+        dirLight.shadow.camera.near = 0.5;
+        dirLight.shadow.camera.far = 50;
+        dirLight.shadow.camera.left = -20;
+        dirLight.shadow.camera.right = 20;
+        dirLight.shadow.camera.top = 20;
+        dirLight.shadow.camera.bottom = -20;
         scene.add(dirLight);
-        
-        // 添加环境光贴图
+        // scene.add(new THREE.DirectionalLightHelper(dirLight, 5)); // 调试用
+
+        const pointLight = new THREE.PointLight(0xffffff, 0.8, 100); // 颜色，强度，距离
+        pointLight.position.set(0, 5, 0);
+        pointLight.castShadow = true;
+        pointLight.shadow.mapSize.width = 512;
+        pointLight.shadow.mapSize.height = 512;
+        scene.add(pointLight);
+        // scene.add(new THREE.PointLightHelper(pointLight, 1)); // 调试用
+
+        // --- 3. 环境贴图 (Environmental Mapping) ---
         const envLoader = new THREE.CubeTextureLoader();
-        const envMap = envLoader.load([
-            'https://threejs.org/examples/textures/cube/Park3/Park3_posx.jpg',
-            'https://threejs.org/examples/textures/cube/Park3/Park3_negx.jpg',
-            'https://threejs.org/examples/textures/cube/Park3/Park3_posy.jpg',
-            'https://threejs.org/examples/textures/cube/Park3/Park3_negy.jpg',
-            'https://threejs.org/examples/textures/cube/Park3/Park3_posz.jpg',
-            'https://threejs.org/examples/textures/cube/Park3/Park3_negz.jpg',
-        ]);
-        scene.environment = envMap;
-        
-        // 创建地面
+        // 修复：更改环境贴图URL以匹配Three.js版本并确保CDN路径正确
+        const envMapUrls = [
+            'https://cdn.jsdelivr.net/npm/three@0.137.0/examples/textures/cube/Park3/posx.jpg',
+            'https://cdn.jsdelivr.net/npm/three@0.137.0/examples/textures/cube/Park3/negx.jpg',
+            'https://cdn.jsdelivr.net/npm/three@0.137.0/examples/textures/cube/Park3/posy.jpg',
+            'https://cdn.jsdelivr.net/npm/three@0.137.0/examples/textures/cube/Park3/negy.jpg',
+            'https://cdn.jsdelivr.net/npm/three@0.137.0/examples/textures/cube/Park3/posz.jpg',
+            'https://cdn.jsdelivr.net/npm/three@0.137.0/examples/textures/cube/Park3/negz.jpg',
+        ];
+        const envMap = envLoader.load(envMapUrls);
+        scene.environment = envMap; // 设置全局环境贴图
+
+        // --- 4. 地面 ---
         const groundGeometry = new THREE.PlaneGeometry(50, 50);
         const groundMaterial = new THREE.MeshStandardMaterial({
-            color: 0x00cc00,
-            roughness: 0.8
+            color: 0x336633,
+            roughness: 0.7,
+            metalness: 0.1
         });
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2;
         ground.receiveShadow = true;
         scene.add(ground);
-        
-        // 创建几何体
-        let currentMesh = null;
-        let originalGeometry = null;
-        
-        function createGeometry(type) {
+
+        // --- 5. 几何建模与选择 ---
+        function createPrimitive(type) {
+            let geometry;
             switch(type) {
                 case 'cube':
-                    return new THREE.BoxGeometry(5, 5, 5);
-                case 'sphere':
-                    return new THREE.SphereGeometry(3, 32, 32);
-                case 'cylinder':
-                    return new THREE.CylinderGeometry(2, 2, 6, 32);
-                case 'torus':
-                    return new THREE.TorusGeometry(3, 1, 16, 100);
-                case 'plane':
-                    return new THREE.PlaneGeometry(10, 10);
-                default:
-                    return new THREE.BoxGeometry(5, 5, 5);
-            }
-        }
-        
-        function createMesh(geometryType) {
-            const geometry = createGeometry(geometryType);
-            const material = new THREE.MeshStandardMaterial({
-                color: 0xff0000,
-                metalness: 0,
-                roughness: 0.5,
-                transparent: false,
-                opacity: 1
-            });
-            
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            
-            // 移除旧的几何体
-            if (currentMesh) {
-                scene.remove(currentMesh);
-            }
-            
-            scene.add(mesh);
-            currentMesh = mesh;
-            originalGeometry = geometry.clone();
-            
-            updateMesh();
-            
-            return mesh;
-        }
-        
-        createMesh('cube');
-        
-        // 关键帧动画
-        let keyframes = [];
-        let isPlaying = false;
-        let animationTime = 0;
-        let frameDuration = 1.0; // 每帧1秒
-        
-        function addKeyframe() {
-            if (currentMesh) {
-                const position = currentMesh.position.clone();
-                const quaternion = currentMesh.quaternion.clone();
-                const scale = currentMesh.scale.clone();
-                
-                keyframes.push({
-                    position,
-                    quaternion,
-                    scale,
-                    time: animationTime
-                });
-                
-                animationTime += frameDuration;
-            }
-        }
-        
-        function updateAnimation() {
-            if (!keyframes.length || keyframes.length < 2 || !isPlaying) return;
-            
-            const currentTime = performance.now() / 1000;
-            
-            // 查找当前时间对应的关键帧
-            for (let i = 0; i < keyframes.length - 1; i++) {
-                const startFrame = keyframes[i];
-                const endFrame = keyframes[i + 1];
-                
-                if (currentTime >= startFrame.time && currentTime <= endFrame.time) {
-                    // 计算插值比例
-                    const t = (currentTime - startFrame.time) / (endFrame.time - startFrame.time);
-                    
-                    // 线性插值位置
-                    currentMesh.position.lerpVectors(startFrame.position, endFrame.position, t);
-                    
-                    // 球面插值旋转
-                    currentMesh.quaternion.slerp(endFrame.quaternion, t);
-                    
-                    // 线性插值缩放
-                    currentMesh.scale.lerpVectors(startFrame.scale, endFrame.scale, t);
-                    
+                    geometry = new THREE.BoxGeometry(5, 5, 5);
                     break;
+                case 'sphere':
+                    geometry = new THREE.SphereGeometry(3, 64, 32); // 更多分段，更平滑
+                    break;
+                case 'cylinder':
+                    geometry = new THREE.CylinderGeometry(2, 2, 6, 32);
+                    break;
+                case 'torus':
+                    geometry = new THREE.TorusGeometry(3, 1, 32, 100);
+                    break;
+                case 'plane':
+                    geometry = new THREE.PlaneGeometry(10, 10);
+                    break;
+                default:
+                    geometry = new THREE.BoxGeometry(5, 5, 5);
+                    break;
+            }
+            return geometry;
+        }
+
+        function createObject(type, isPrimitive = true) {
+            if (currentObject) {
+                scene.remove(currentObject);
+                // 清除FFD控制点
+                clearFFDControlPoints();
+            }
+
+            let newObject;
+            let meshToOperate = null; // 实际进行变换、材质、FFD操作的Mesh
+
+            if (isPrimitive) {
+                const geometry = createPrimitive(type);
+                const material = new THREE.MeshStandardMaterial({
+                    color: 0xff0000,
+                    metalness: 0,
+                    roughness: 0.5,
+                    transparent: false,
+                    opacity: 1
+                });
+                newObject = new THREE.Mesh(geometry, material);
+                meshToOperate = newObject;
+                originalGeometry = geometry.clone(); // 克隆用于FFD
+            } else { // GLTF/GLB Model
+                // GLTF模型加载在loadGLTFModel中处理
+                return;
+            }
+
+            newObject.castShadow = true;
+            newObject.receiveShadow = true;
+            scene.add(newObject);
+            currentObject = newObject;
+            currentMesh = meshToOperate; // 指向实际操作的网格
+            updateUIFromObject(currentObject);
+            resetAnimationState(); // 更换模型后重置动画
+        }
+
+        function loadGLTFModel(file) {
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                gltfLoader.load(event.target.result, (gltf) => {
+                    if (currentObject) {
+                        scene.remove(currentObject);
+                        clearFFDControlPoints();
+                    }
+
+                    const model = gltf.scene;
+                    model.traverse((child) => {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                            // 对于导入的模型，通常需要将其BufferGeometry克隆一份作为原始数据
+                            // 并且为了FFD能直接操作顶点，最好转换为非索引的BufferGeometry或者Geometry
+                            // 注意：在GLTF加载中，currentMesh可能是一个Group或Scene中的第一个Mesh
+                            // 这段逻辑需要确保 originalGeometry 和 currentMesh 的一致性
+                            if (!originalGeometry || (currentMesh && child.geometry !== originalGeometry)) { 
+                                originalGeometry = child.geometry.clone();
+                                // Ensure originalGeometry is non-indexed for easier direct vertex access
+                                if (originalGeometry.index) {
+                                    originalGeometry = originalGeometry.toNonIndexed();
+                                }
+                                originalGeometry.computeVertexNormals(); // Make sure normals are up to date
+                            }
+                            // 将材质更新为StandardMaterial，并应用当前UI值
+                            child.material = new THREE.MeshStandardMaterial().copy(child.material);
+                            if (!currentMesh) { // 确保只赋值一次，如果模型有多个Mesh，操作第一个
+                                currentMesh = child; 
+                            }
+                        }
+                    });
+
+                    scene.add(model);
+                    currentObject = model; // 整个模型作为当前对象
+                    // 适配模型大小，防止过大或过小
+                    const bbox = new THREE.Box3().setFromObject(currentObject);
+                    const size = bbox.getSize(new THREE.Vector3());
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    const scaleFactor = 5 / maxDim; // 缩放到最大尺寸为5
+                    currentObject.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                    currentObject.position.set(0, 0, 0); // 重置位置
+                    updateUIFromObject(currentObject);
+                    resetAnimationState(); // 更换模型后重置动画
+                }, undefined, (error) => {
+                    console.error('Error loading GLTF model:', error);
+                    alert('无法加载GLTF模型，请检查文件格式或控制台错误。');
+                });
+            };
+            reader.readAsDataURL(file); // 读取文件为Data URL
+        }
+
+
+        // --- 6. UI 更新与事件监听 ---
+        const uiElements = {
+            geometrySelector: document.getElementById('geometrySelector'),
+            gltfModelInput: document.getElementById('gltfModelInput'),
+
+            posX: document.getElementById('posX'),
+            posY: document.getElementById('posY'),
+            posZ: document.getElementById('posZ'),
+            rotX: document.getElementById('rotX'),
+            rotY: document.getElementById('rotY'),
+            rotZ: document.getElementById('rotZ'),
+            scale: document.getElementById('scale'),
+
+            colorPicker: document.getElementById('colorPicker'),
+            metalness: document.getElementById('metalness'),
+            roughness: document.getElementById('roughness'),
+            opacity: document.getElementById('opacity'),
+            diffuseTextureInput: document.getElementById('diffuseTextureInput'),
+            normalMapInput: document.getElementById('normalMapInput'),
+
+            ambientIntensity: document.getElementById('ambientIntensity'),
+            dirIntensity: document.getElementById('dirIntensity'),
+            pointIntensity: document.getElementById('pointIntensity'),
+            pointLightX: document.getElementById('pointLightX'),
+            pointLightY: document.getElementById('pointLightY'),
+            pointLightZ: document.getElementById('pointLightZ'),
+
+            createFFDPoints: document.getElementById('createFFDPoints'),
+            resetFFD: document.getElementById('resetFFD'),
+
+            addKeyframe: document.getElementById('addKeyframe'),
+            playAnim: document.getElementById('playAnim'),
+            pauseAnim: document.getElementById('pauseAnim'),
+            resetAnim: document.getElementById('resetAnim'),
+            clearAnim: document.getElementById('clearAnim'),
+            animationTimeline: document.getElementById('animationTimeline'),
+
+            // Value displays
+            posX_val: document.getElementById('posX_val'),
+            posY_val: document.getElementById('posY_val'),
+            posZ_val: document.getElementById('posZ_val'),
+            rotX_val: document.getElementById('rotX_val'),
+            rotY_val: document.getElementById('rotY_val'),
+            rotZ_val: document.getElementById('rotZ_val'),
+            scale_val: document.getElementById('scale_val'),
+            metalness_val: document.getElementById('metalness_val'),
+            roughness_val: document.getElementById('roughness_val'),
+            opacity_val: document.getElementById('opacity_val'),
+            ambientIntensity_val: document.getElementById('ambientIntensity_val'),
+            dirIntensity_val: document.getElementById('dirIntensity_val'),
+            pointIntensity_val: document.getElementById('pointIntensity_val'),
+            animTime_val: document.getElementById('animTime_val')
+        };
+
+        // 更新UI滑块的值显示
+        function updateValueDisplays() {
+            uiElements.posX_val.textContent = parseFloat(uiElements.posX.value).toFixed(1);
+            uiElements.posY_val.textContent = parseFloat(uiElements.posY.value).toFixed(1);
+            uiElements.posZ_val.textContent = parseFloat(uiElements.posZ.value).toFixed(1);
+            uiElements.rotX_val.textContent = parseInt(uiElements.rotX.value) + '°';
+            uiElements.rotY_val.textContent = parseInt(uiElements.rotY.value) + '°';
+            uiElements.rotZ_val.textContent = parseInt(uiElements.rotZ.value) + '°';
+            uiElements.scale_val.textContent = parseFloat(uiElements.scale.value).toFixed(2);
+            uiElements.metalness_val.textContent = parseFloat(uiElements.metalness.value).toFixed(2);
+            uiElements.roughness_val.textContent = parseFloat(uiElements.roughness.value).toFixed(2);
+            uiElements.opacity_val.textContent = parseFloat(uiElements.opacity.value).toFixed(2);
+            uiElements.ambientIntensity_val.textContent = parseFloat(uiElements.ambientIntensity.value).toFixed(1);
+            uiElements.dirIntensity_val.textContent = parseFloat(uiElements.dirIntensity.value).toFixed(1);
+            uiElements.pointIntensity_val.textContent = parseFloat(uiElements.pointIntensity.value).toFixed(1);
+        }
+
+        // 从3D对象更新UI（当模型切换或动画播放时）
+        function updateUIFromObject(obj) {
+            if (!obj) return;
+
+            uiElements.posX.value = obj.position.x.toFixed(1);
+            uiElements.posY.value = obj.position.y.toFixed(1);
+            uiElements.posZ.value = obj.position.z.toFixed(1);
+
+            // 欧拉角转回度数
+            const euler = new THREE.Euler().setFromQuaternion(obj.quaternion, 'XYZ');
+            uiElements.rotX.value = THREE.MathUtils.radToDeg(euler.x).toFixed(0);
+            uiElements.rotY.value = THREE.MathUtils.radToDeg(euler.y).toFixed(0);
+            uiElements.rotZ.value = THREE.MathUtils.radToDeg(euler.z).toFixed(0);
+
+            uiElements.scale.value = obj.scale.x.toFixed(2); // 假设XYZ缩放一致
+
+            if (currentMesh && currentMesh.material) {
+                uiElements.colorPicker.value = '#' + currentMesh.material.color.getHexString();
+                uiElements.metalness.value = currentMesh.material.metalness !== undefined ? currentMesh.material.metalness.toFixed(2) : 0;
+                uiElements.roughness.value = currentMesh.material.roughness !== undefined ? currentMesh.material.roughness.toFixed(2) : 0.5;
+                uiElements.opacity.value = currentMesh.material.opacity !== undefined ? currentMesh.material.opacity.toFixed(2) : 1;
+            }
+            updateValueDisplays();
+        }
+
+        // 应用UI值到3D对象
+        function applyUIValuesToObject() {
+            if (!currentObject) return;
+
+            currentObject.position.set(
+                parseFloat(uiElements.posX.value),
+                parseFloat(uiElements.posY.value),
+                parseFloat(uiElements.posZ.value)
+            );
+            currentObject.rotation.set(
+                THREE.MathUtils.degToRad(parseFloat(uiElements.rotX.value)),
+                THREE.MathUtils.degToRad(parseFloat(uiElements.rotY.value)),
+                THREE.MathUtils.degToRad(parseFloat(uiElements.rotZ.value))
+            );
+            const scale = parseFloat(uiElements.scale.value);
+            currentObject.scale.set(scale, scale, scale);
+
+            if (currentMesh && currentMesh.material) {
+                currentMesh.material.color.set(uiElements.colorPicker.value);
+                currentMesh.material.metalness = parseFloat(uiElements.metalness.value);
+                currentMesh.material.roughness = parseFloat(uiElements.roughness.value);
+                currentMesh.material.opacity = parseFloat(uiElements.opacity.value);
+                currentMesh.material.transparent = currentMesh.material.opacity < 1;
+                currentMesh.material.needsUpdate = true;
+            }
+            updateValueDisplays();
+        }
+
+        function updateLightControls() {
+            ambientLight.intensity = parseFloat(uiElements.ambientIntensity.value);
+            dirLight.intensity = parseFloat(uiElements.dirIntensity.value);
+            pointLight.intensity = parseFloat(uiElements.pointIntensity.value);
+            pointLight.position.set(
+                parseFloat(uiElements.pointLightX.value),
+                parseFloat(uiElements.pointLightY.value),
+                parseFloat(uiElements.pointLightZ.value)
+            );
+            updateValueDisplays();
+        }
+
+        // 纹理加载函数
+        function loadTextureFile(file, type = 'map') {
+            if (!currentMesh || !file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                textureLoader.load(event.target.result, (texture) => {
+                    if (type === 'map') {
+                        currentMesh.material.map = texture;
+                    } else if (type === 'normalMap') {
+                        currentMesh.material.normalMap = texture;
+                        // 法线贴图可能需要切线
+                        if (currentMesh.geometry.attributes.tangent === undefined) {
+                            currentMesh.geometry.computeTangents();
+                        }
+                    }
+                    currentMesh.material.needsUpdate = true;
+                }, undefined, (error) => {
+                    console.error('Error loading texture:', error);
+                    alert('无法加载纹理，请检查文件或控制台错误。');
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 绑定UI事件
+        Object.values(uiElements).forEach(element => {
+            if (element.tagName === 'INPUT' && element.type === 'range') {
+                element.addEventListener('input', applyUIValuesToObject);
+                element.addEventListener('input', updateValueDisplays); // 立即更新显示
+            } else if (element.tagName === 'INPUT' && element.type === 'color') {
+                element.addEventListener('input', applyUIValuesToObject);
+            } else if (element.id.startsWith('pointLight')) {
+                element.addEventListener('input', updateLightControls);
+            } else if (element.id.includes('Intensity')) {
+                element.addEventListener('input', updateLightControls);
+                element.addEventListener('input', updateValueDisplays);
+            }
+        });
+
+        uiElements.geometrySelector.addEventListener('change', (e) => createObject(e.target.value));
+        uiElements.gltfModelInput.addEventListener('change', (e) => loadGLTFModel(e.target.files[0]));
+        uiElements.diffuseTextureInput.addEventListener('change', (e) => loadTextureFile(e.target.files[0], 'map'));
+        uiElements.normalMapInput.addEventListener('change', (e) => loadTextureFile(e.target.files[0], 'normalMap'));
+
+        // 初始化时设置UI显示
+        updateValueDisplays();
+        updateLightControls();
+        createObject('cube'); // 初始加载一个立方体
+
+        // --- 7. 自由变形 (FFD - 简化实现) ---
+        function createFFDControlPoints() {
+            clearFFDControlPoints(); // 先清除旧的
+
+            if (!currentMesh || !originalGeometry) {
+                alert('请先创建或加载一个模型！');
+                return;
+            }
+
+            // 确保originalGeometry是最新的，如果用户重置了变形，可能需要重新克隆
+            if (currentMesh.geometry !== originalGeometry) {
+                resetFFD(); // 确保当前几何体是原始状态
+            }
+
+            const bbox = new THREE.Box3().setFromObject(currentMesh);
+            const size = bbox.getSize(new THREE.Vector3());
+            const center = bbox.getCenter(new THREE.Vector3());
+
+            const gridSize = 2; // 例如，创建一个 3x3x3 的控制点网格 (gridSize+1)
+            const pointGeometry = new THREE.SphereGeometry(0.3, 16, 8);
+            const pointMaterial = new THREE.MeshBasicMaterial({ color: 0x00BFFF, transparent: true, opacity: 0.8 });
+
+            for (let i = 0; i <= gridSize; i++) {
+                for (let j = 0; j <= gridSize; j++) {
+                    for (let k = 0; k <= gridSize; k++) {
+                        const x = center.x - size.x / 2 + (size.x / gridSize) * i;
+                        const y = center.y - size.y / 2 + (size.y / gridSize) * j;
+                        const z = center.z - size.z / 2 + (size.z / gridSize) * k;
+
+                        const point = new THREE.Mesh(pointGeometry, pointMaterial);
+                        point.position.set(x, y, z);
+                        scene.add(point);
+                        ffdControlPoints.push(point);
+
+                        // 存储控制点自身的世界初始位置，方便计算delta
+                        point.initialWorldPos = new THREE.Vector3().copy(point.position);
+                    }
                 }
             }
+
+            // 启用拖拽事件
+            renderer.domElement.addEventListener('pointerdown', onPointerDownFFD);
+            renderer.domElement.addEventListener('pointermove', onPointerMoveFFD);
+            renderer.domElement.addEventListener('pointerup', onPointerUpFFD);
+            controls.enabled = false; // 禁用轨道控制器，以便拖拽FFD点
         }
-        
-        // UI控制
-        document.getElementById('geometrySelector').addEventListener('change', function(e) {
-            createMesh(e.target.value);
-        });
-        
-        document.getElementById('posX').addEventListener('input', updateMesh);
-        document.getElementById('posY').addEventListener('input', updateMesh);
-        document.getElementById('posZ').addEventListener('input', updateMesh);
-        document.getElementById('rotX').addEventListener('input', updateMesh);
-        document.getElementById('rotY').addEventListener('input', updateMesh);
-        document.getElementById('rotZ').addEventListener('input', updateMesh);
-        document.getElementById('scale').addEventListener('input', updateMesh);
-        document.getElementById('colorPicker').addEventListener('input', updateMesh);
-        document.getElementById('metalness').addEventListener('input', updateMesh);
-        document.getElementById('roughness').addEventListener('input', updateMesh);
-        document.getElementById('opacity').addEventListener('input', updateMesh);
-        document.getElementById('ambientIntensity').addEventListener('input', updateAmbientLight);
-        document.getElementById('dirIntensity').addEventListener('input', updateDirectionalLight);
-        
-        document.getElementById('loadTexture').addEventListener('click', loadTexture);
-        document.getElementById('loadNormalMap').addEventListener('click', loadNormalMap);
-        document.getElementById('loadEnvMap').addEventListener('click', loadEnvMap);
-        
-        document.getElementById('warpMesh').addEventListener('click', warpMesh);
-        document.getElementById('resetMesh').addEventListener('click', resetMesh);
-        
-        document.getElementById('addKeyframe').addEventListener('click', addKeyframe);
-        document.getElementById('playAnim').addEventListener('click', function() {
-            isPlaying = true;
-            animationTime = keyframes[0].time; // 从第一个关键帧开始
-        });
-        document.getElementById('stopAnim').addEventListener('click', function() {
-            isPlaying = false;
-        });
-        document.getElementById('clearAnim').addEventListener('click', function() {
-            keyframes = [];
-            animationTime = 0;
-        });
-        
-        function updateMesh() {
-            if (!currentMesh) return;
-            
-            // 更新位置
-            currentMesh.position.x = parseFloat(document.getElementById('posX').value);
-            currentMesh.position.y = parseFloat(document.getElementById('posY').value);
-            currentMesh.position.z = parseFloat(document.getElementById('posZ').value);
-            
-            // 更新旋转
-            currentMesh.rotation.x = THREE.MathUtils.degToRad(parseFloat(document.getElementById('rotX').value));
-            currentMesh.rotation.y = THREE.MathUtils.degToRad(parseFloat(document.getElementById('rotY').value));
-            currentMesh.rotation.z = THREE.MathUtils.degToRad(parseFloat(document.getElementById('rotZ').value));
-            
-            // 更新缩放
-            const scale = parseFloat(document.getElementById('scale').value);
-            currentMesh.scale.set(scale, scale, scale);
-            
-            // 更新材质
-            currentMesh.material.color.set(document.getElementById('colorPicker').value);
-            currentMesh.material.metalness = parseFloat(document.getElementById('metalness').value);
-            currentMesh.material.roughness = parseFloat(document.getElementById('roughness').value);
-            currentMesh.material.opacity = parseFloat(document.getElementById('opacity').value);
-            currentMesh.material.transparent = currentMesh.material.opacity < 1;
+
+        function clearFFDControlPoints() {
+            ffdControlPoints.forEach(p => scene.remove(p));
+            ffdControlPoints = [];
+            renderer.domElement.removeEventListener('pointerdown', onPointerDownFFD);
+            renderer.domElement.removeEventListener('pointermove', onPointerMoveFFD);
+            renderer.domElement.removeEventListener('pointerup', onPointerUpFFD);
+            controls.enabled = true; // 重新启用轨道控制器
         }
-        
-        function updateAmbientLight() {
-            ambientLight.intensity = parseFloat(document.getElementById('ambientIntensity').value);
+
+        function onPointerDownFFD(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(ffdControlPoints);
+
+            if (intersects.length > 0) {
+                draggableFFDPoint = intersects[0].object;
+                controls.enabled = false; // 禁用轨道控制器
+                // 存储鼠标点击时的Z深度，用于拖拽保持深度
+                const intersectPoint = intersects[0].point;
+                draggableFFDPoint.offset = intersectPoint.sub(draggableFFDPoint.position);
+            }
         }
-        
-        function updateDirectionalLight() {
-            dirLight.intensity = parseFloat(document.getElementById('dirIntensity').value);
-        }
-        
-        function loadTexture() {
-            if (!currentMesh) return;
-            
-            const loader = new THREE.TextureLoader();
-            loader.load(
-                'https://threejs.org/examples/textures/hardwood2_diffuse.jpg',
-                function(texture) {
-                    currentMesh.material.map = texture;
-                    currentMesh.material.needsUpdate = true;
-                }
-            );
-        }
-        
-        function loadNormalMap() {
-            if (!currentMesh) return;
-            
-            const loader = new THREE.TextureLoader();
-            loader.load(
-                'https://threejs.org/examples/textures/hardwood2_normal.jpg',
-                function(texture) {
-                    currentMesh.material.normalMap = texture;
-                    currentMesh.material.needsUpdate = true;
-                }
-            );
-        }
-        
-        function loadEnvMap() {
-            if (!currentMesh) return;
-            
-            const envLoader = new THREE.CubeTextureLoader();
-            envLoader.load([
-                'https://threejs.org/examples/textures/cube/Park3/Park3_posx.jpg',
-                'https://threejs.org/examples/textures/cube/Park3/Park3_negx.jpg',
-                'https://threejs.org/examples/textures/cube/Park3/Park3_posy.jpg',
-                'https://threejs.org/examples/textures/cube/Park3/Park3_negy.jpg',
-                'https://threejs.org/examples/textures/cube/Park3/Park3_posz.jpg',
-                'https://threejs.org/examples/textures/cube/Park3/Park3_negz.jpg',
-            ], function(envMap) {
-                currentMesh.material.envMap = envMap;
-                currentMesh.material.needsUpdate = true;
-            });
-        }
-        
-        function warpMesh() {
-            if (!currentMesh || !originalGeometry) return;
-            
-            // 克隆原始几何体并应用变形
-            const geometry = originalGeometry.clone();
-            
-            // 对几何体的顶点进行自由变形
-            geometry.vertices.forEach((vertex, index) => {
-                // 获取原始位置
-                const originalVertex = originalGeometry.vertices[index];
+
+        function onPointerMoveFFD(event) {
+            if (draggableFFDPoint) {
+                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+                const plane = new THREE.Plane();
+                camera.getWorldDirection(plane.normal); // 使用摄像机朝向作为平面法线
+                plane.setFromNormalAndCoplanarPoint(plane.normal, draggableFFDPoint.position); // 平面通过FFD点
                 
-                // 添加随机变形
-                const warpFactor = 0.5; // 变形程度
-                vertex.x = originalVertex.x + Math.sin(originalVertex.x * 2) * warpFactor;
-                vertex.y = originalVertex.y + Math.cos(originalVertex.z * 2) * warpFactor;
-                vertex.z = originalVertex.z + Math.sin(originalVertex.y * 2) * warpFactor;
-            });
+                const intersectPoint = new THREE.Vector3();
+                raycaster.ray.intersectPlane(plane, intersectPoint);
+                
+                if (intersectPoint) {
+                    draggableFFDPoint.position.copy(intersectPoint.sub(draggableFFDPoint.offset));
+                    applyFFD(); // 拖拽时实时更新变形
+                }
+            } else {
+                controls.enabled = true; // 确保没有拖拽时控制器启用
+            }
+        }
+
+        function onPointerUpFFD() {
+            draggableFFDPoint = null;
+            controls.enabled = true; // 重新启用轨道控制器
+        }
+
+        function applyFFD() {
+            if (!currentMesh || !originalGeometry || ffdControlPoints.length === 0) return;
+
+            // 获取当前Mesh的几何体
+            const geometryToDeform = currentMesh.geometry;
+            const originalPositions = originalGeometry.attributes.position.array;
+            const deformedPositions = new Float32Array(originalPositions.length); // 创建新的数组
+
+            // 变形影响范围和衰减
+            const influenceRadius = 10; // FFD控制点的影响范围
+            const influenceFalloff = 2; // 衰减指数，越大衰减越快
+
+            for (let i = 0; i < originalPositions.length; i += 3) {
+                const originalLocalVertex = new THREE.Vector3(
+                    originalPositions[i],
+                    originalPositions[i+1],
+                    originalPositions[i+2]
+                );
+                // 将原始局部顶点转换为世界坐标，以便与FFD控制点比较距离
+                const originalWorldVertex = originalLocalVertex.clone();
+                currentObject.localToWorld(originalWorldVertex);
+
+                let totalInfluenceDelta = new THREE.Vector3(); // 累积的变形量
+                let totalWeight = 0; // 累积的权重
+
+                ffdControlPoints.forEach(controlPoint => {
+                    // 控制点的世界位置
+                    const cpWorldPos = controlPoint.position;
+                    // 控制点的原始世界位置
+                    const cpInitialWorldPos = controlPoint.initialWorldPos;
+
+                    // 计算控制点的实际移动量（世界坐标）
+                    const cpDelta = cpWorldPos.clone().sub(cpInitialWorldPos);
+
+                    // 计算顶点到控制点的距离
+                    const dist = originalWorldVertex.distanceTo(cpInitialWorldPos);
+
+                    if (dist < influenceRadius) {
+                        // 计算权重（基于距离的衰减）
+                        const normalizedDist = dist / influenceRadius;
+                        const weight = Math.pow(1 - normalizedDist, influenceFalloff); // 更平滑的衰减
+                        
+                        totalInfluenceDelta.addScaledVector(cpDelta, weight);
+                        totalWeight += weight;
+                    }
+                });
+
+                let newWorldVertex = originalWorldVertex.clone();
+                if (totalWeight > 0) {
+                    newWorldVertex.add(totalInfluenceDelta.divideScalar(totalWeight));
+                }
+
+                // 将变形后的世界顶点转换回模型局部坐标
+                currentObject.worldToLocal(newWorldVertex);
+                
+                deformedPositions[i] = newWorldVertex.x;
+                deformedPositions[i+1] = newWorldVertex.y;
+                deformedPositions[i+2] = newWorldVertex.z;
+            }
+
+            // 更新几何体的position属性
+            currentMesh.geometry.setAttribute('position', new THREE.BufferAttribute(deformedPositions, 3));
+            currentMesh.geometry.attributes.position.needsUpdate = true;
+            currentMesh.geometry.computeVertexNormals(); // 重新计算法线
+            // currentMesh.geometry.computeTangents(); // 如果有法线贴图，可能需要重新计算切线
+        }
+
+
+        function resetFFD() {
+            clearFFDControlPoints();
+            if (currentMesh && originalGeometry) {
+                currentMesh.geometry.dispose(); // 释放旧几何体资源
+                currentMesh.geometry = originalGeometry.clone(); // 恢复到原始几何体
+                currentMesh.geometry.computeVertexNormals();
+                // currentMesh.geometry.computeTangents(); // 确保切线也重置
+            }
+        }
+
+        uiElements.createFFDPoints.addEventListener('click', createFFDControlPoints);
+        uiElements.resetFFD.addEventListener('click', resetFFD);
+
+        // --- 8. 关键帧动画 ---
+        function recordKeyframe() {
+            if (!currentObject) return;
+
+            // 获取当前时间
+            const currentTime = mixer ? mixer.time : 0;
+
+            const position = currentObject.position.clone();
+            const quaternion = currentObject.quaternion.clone();
+            const scale = currentObject.scale.clone();
+
+            let foundExistingClip = false;
+            if (animations.length > 0) {
+                // 如果已经有动画片段，尝试添加到现有片段中
+                const existingClip = animations[0]; // 假设只有一个模型的动画
+
+                // 检查并更新或添加position track
+                let posTrack = existingClip.tracks.find(t => t.name === '.position');
+                if (!posTrack) {
+                    posTrack = new THREE.VectorKeyframeTrack('.position', [], []);
+                    existingClip.tracks.push(posTrack);
+                }
+                posTrack.times.push(currentTime);
+                posTrack.values.push(position.x, position.y, position.z);
+
+                // 检查并更新或添加quaternion track
+                let rotTrack = existingClip.tracks.find(t => t.name === '.quaternion');
+                if (!rotTrack) {
+                    rotTrack = new THREE.QuaternionKeyframeTrack('.quaternion', [], []);
+                    existingClip.tracks.push(rotTrack);
+                }
+                rotTrack.times.push(currentTime);
+                rotTrack.values.push(quaternion.x, quaternion.y, quaternion.z, quaternion.w);
+
+                // 检查并更新或添加scale track
+                let scaleTrack = existingClip.tracks.find(t => t.name === '.scale');
+                if (!scaleTrack) {
+                    scaleTrack = new THREE.VectorKeyframeTrack('.scale', [], []);
+                    existingClip.tracks.push(scaleTrack);
+                }
+                scaleTrack.times.push(currentTime);
+                scaleTrack.values.push(scale.x, scale.y, scale.z);
+
+                // 对track进行排序，确保时间轴正确
+                posTrack.sort();
+                rotTrack.sort();
+                scaleTrack.sort();
+
+                existingClip.duration = Math.max(existingClip.duration, currentTime);
+                foundExistingClip = true;
+            }
+
+            if (!foundExistingClip) {
+                // 如果没有动画片段，则创建一个新的
+                const tracks = [
+                    new THREE.VectorKeyframeTrack('.position', [currentTime], [position.x, position.y, position.z]),
+                    new THREE.QuaternionKeyframeTrack('.quaternion', [currentTime], [quaternion.x, quaternion.y, quaternion.z, quaternion.w]),
+                    new THREE.VectorKeyframeTrack('.scale', [currentTime], [scale.x, scale.y, scale.z])
+                ];
+                const clip = new THREE.AnimationClip('MainAnimation', currentTime, tracks);
+                animations.push(clip);
+            }
             
-            // 重新计算法线
-            geometry.computeVertexNormals();
-            
-            // 应用变形后的几何体
-            currentMesh.geometry = geometry;
+            // 更新时间轴最大值
+            if (animations.length > 0) {
+                uiElements.animationTimeline.max = animations[0].duration + 1; // 增加一点余量
+            }
+            console.log('关键帧已添加:', animations);
+        }
+
+        function setupAnimationMixer() {
+            if (currentObject && !mixer) {
+                mixer = new THREE.AnimationMixer(currentObject);
+                mixer.addEventListener('finished', onAnimationFinished);
+            }
+        }
+
+        function playAnimation() {
+            if (!currentObject || animations.length === 0) {
+                alert('请先添加关键帧！');
+                return;
+            }
+
+            setupAnimationMixer();
+            if (animationAction) {
+                animationAction.play();
+                animationAction.paused = false;
+            } else {
+                animationAction = mixer.clipAction(animations[0]);
+                animationAction.loop = THREE.LoopRepeat; // 循环播放
+                animationAction.clampWhenFinished = false;
+                animationAction.play();
+            }
+            clock.start(); // 开始计时器
+            updateValueDisplays(); // 确保显示更新
+        }
+
+        function pauseAnimation() {
+            if (animationAction) {
+                animationAction.paused = true;
+                clock.stop(); // 停止计时器
+            }
+        }
+
+        function resetAnimation() {
+            if (animationAction) {
+                animationAction.stop(); // 停止并重置到第一帧
+                mixer.stopAllAction();
+                // 恢复到初始状态（关键帧0）
+                if (animations.length > 0 && animations[0].tracks.length > 0) {
+                    const firstPos = new THREE.Vector3(
+                        animations[0].tracks.find(t => t.name === '.position')?.values[0] || 0,
+                        animations[0].tracks.find(t => t.name === '.position')?.values[1] || 0,
+                        animations[0].tracks.find(t => t.name === '.position')?.values[2] || 0
+                    );
+                    const firstRot = new THREE.Quaternion(
+                        animations[0].tracks.find(t => t.name === '.quaternion')?.values[0] || 0,
+                        animations[0].tracks.find(t => t.name === '.quaternion')?.values[1] || 0,
+                        animations[0].tracks.find(t => t.name === '.quaternion')?.values[2] || 0,
+                        animations[0].tracks.find(t => t.name === '.quaternion')?.values[3] || 1
+                    );
+                    const firstScale = new THREE.Vector3(
+                        animations[0].tracks.find(t => t.name === '.scale')?.values[0] || 1,
+                        animations[0].tracks.find(t => t.name === '.scale')?.values[1] || 1,
+                        animations[0].tracks.find(t => t.name === '.scale')?.values[2] || 1
+                    );
+                    currentObject.position.copy(firstPos);
+                    currentObject.quaternion.copy(firstRot);
+                    currentObject.scale.copy(firstScale);
+                    updateUIFromObject(currentObject);
+                }
+            }
+            uiElements.animationTimeline.value = 0;
+            uiElements.animTime_val.textContent = '0.0s';
+            clock.stop(); // 确保计时器停止
+        }
+
+        function clearAnimation() {
+            if (animationAction) { // 检查 animationAction 是否已定义
+                animationAction.stop();
+                if (mixer) { // 检查 mixer 是否已定义
+                    mixer.uncacheRoot(mixer.getRoot()); // 清除所有与根对象相关的缓存
+                }
+                mixer = null;
+                animationAction = null;
+            }
+            animations = [];
+            uiElements.animationTimeline.value = 0;
+            uiElements.animationTimeline.max = 10; // 重置最大值
+            uiElements.animTime_val.textContent = '0.0s';
+            // 恢复模型到UI控制的初始状态
+            applyUIValuesToObject();
+            clock.stop(); // 确保计时器停止
         }
         
-        function resetMesh() {
-            if (!currentMesh || !originalGeometry) return;
-            currentMesh.geometry = originalGeometry.clone();
+        // 动画播放完成后回调
+        function onAnimationFinished() {
+            // 可以选择停止或循环，这里设为循环
+            // console.log('Animation finished, looping...');
         }
+
+        function resetAnimationState() {
+            clearAnimation(); // 移除所有关键帧和动画状态
+            applyUIValuesToObject(); // 将模型恢复到UI当前设置的状态
+        }
+
+        uiElements.addKeyframe.addEventListener('click', recordKeyframe);
+        uiElements.playAnim.addEventListener('click', playAnimation);
+        uiElements.pauseAnim.addEventListener('click', pauseAnimation);
+        uiElements.resetAnim.addEventListener('click', resetAnimation);
+        uiElements.clearAnim.addEventListener('click', clearAnimation);
         
-        // 窗口大小调整
-        window.addEventListener('resize', function() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+        uiElements.animationTimeline.addEventListener('input', (e) => {
+            if (mixer && animations.length > 0) {
+                mixer.stopAllAction(); // 停止当前播放的动画
+                animationAction = mixer.clipAction(animations[0]);
+                animationAction.time = parseFloat(e.target.value); // 设置到指定时间
+                animationAction.play(); // 播放动画
+                animationAction.paused = true; // 立即暂停，实现手动拖动效果
+                updateUIFromObject(currentObject); // 更新UI显示
+                uiElements.animTime_val.textContent = parseFloat(e.target.value).toFixed(1) + 's';
+            }
         });
-        
-        // 动画循环
+
+
+        // --- 9. 动画循环 ---
         function animate() {
             requestAnimationFrame(animate);
-            
-            controls.update();
-            
-            if (isPlaying) {
-                updateAnimation();
+
+            const delta = clock.getDelta(); // 获取帧间隔时间
+
+            controls.update(); // 更新轨道控制器
+
+            if (mixer) {
+                mixer.update(delta); // 更新动画混合器
+                // 更新时间轴滑块
+                if (animationAction && !animationAction.paused) { // 只有在播放时才更新时间
+                    uiElements.animationTimeline.value = mixer.time;
+                    uiElements.animTime_val.textContent = mixer.time.toFixed(1) + 's';
+                }
+                // 更新UI显示，因为动画会改变模型状态
+                updateUIFromObject(currentObject);
             }
             
             renderer.render(scene, camera);
         }
-        
+
         animate();
+
+        // 窗口大小调整
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 </html>
